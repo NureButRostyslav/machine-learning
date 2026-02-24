@@ -1,6 +1,5 @@
 import random
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 
 class Perceptron:
@@ -23,7 +22,6 @@ class Perceptron:
     def predict(self, inputs):
         """
         Calculate the activation output for a given input vector.
-        Formula: y = step(sum(w_i * x_i) - b)
         """
         weighted_sum = sum(w * x for w, x in zip(self.weights, inputs))
         s = weighted_sum - self.bias
@@ -31,6 +29,9 @@ class Perceptron:
         return 1 if s >= 0 else -1
 
     def train(self, train_data, max_epochs=100):
+        """
+        Training of a perceptron using the Rosenblatt algorithm
+        """
         epochs_passed = 0
         necessary_results = len(train_data)
         random.shuffle(train_data)
@@ -104,6 +105,10 @@ def evaluate_accuracy(perceptron_model, test_set):
     return (correct_answers / len(test_set)) * 100
 
 def generate_graph(perceptron_model, test_set):
+    """
+    Graphical representation of classification results.
+    Displays sample points and the separating hyperplane H.
+    """
     if not test_set or not perceptron_model:
         return
     
@@ -119,7 +124,6 @@ def generate_graph(perceptron_model, test_set):
 
     ax.scatter(xs, ys, zs, c=colors)
 
-    # Weight vector (direction only)
     w1, w2, w3 = perceptron_model.weights
     b = -perceptron_model.bias
 
