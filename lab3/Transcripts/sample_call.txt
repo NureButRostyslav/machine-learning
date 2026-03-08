@@ -1,0 +1,1 @@
+This is an audio recording of my voice for audio recording testing purposes, so that it can be played back on an audio playback device. This is to ensure a consistent audio subject while changing the environment, to ensure comparability when comparing the end result, as opposed to when using some kind of audio source that is likely to be inconsistent.
