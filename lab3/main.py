@@ -76,7 +76,10 @@ def google_transcribe(audio_file_name: str) -> str:
     config = speech.RecognitionConfig(
         encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
         sample_rate_hertz=frame_rate,
-        language_code='en-US'
+        language_code='en-US',
+        enable_automatic_punctuation=True,
+        enable_word_time_offsets=True,
+        model="latest_long"
     )
 
     operation = client.long_running_recognize(config=config, audio=audio)
