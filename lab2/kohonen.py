@@ -46,8 +46,14 @@ class KohonenSOM:
                         self.weights[i, j] += lr * (x - self.weights[i, j])
 
     def train_wta(self, data, epochs=1000):
-        #here should be the wta algorithm
-        pass
+        n_samples = data.shape[0]
+
+        for step in range(epochs):
+            x = data[np.random.randint(0, n_samples)]
+            lr = self._decay(self.lr0, step, epochs)
+            bmu_idx = self._find_bmu(x)
+
+            self.weights[bmu_idx] += lr * (x - self.weights[bmu_idx])
 
     def map_vector(self, x):
         return self._find_bmu(x)
