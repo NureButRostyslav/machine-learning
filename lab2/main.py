@@ -2,6 +2,7 @@ from kohonen import KohonenSOM
 import numpy as np
 from collections import defaultdict, Counter
 import matplotlib.pyplot as plt
+import time
 
 def normalize(data):
     """Min-max normalization"""
@@ -13,6 +14,8 @@ def normalize(data):
 def generate_class_samples(mean, std, n):
     """Generate samples for a class"""
     return np.random.normal(mean, std, (n, len(mean)))
+    # noisy_std = np.array(std) * 5.0
+    # return np.random.normal(mean, noisy_std, (n, len(mean)))
 
 def shuffle_data(data, labels):
     indices = np.random.permutation(len(data))
@@ -141,6 +144,83 @@ def classification_error(som, neuron_labels, test_data, test_labels):
 
     return wrong / len(test_labels)
 
+def analyze_effectiveness_from_lr_wta(train_data, train_labels, test_data, test_labels, learning_rates):
+    results = []
+    for lr in learning_rates:
+        som = KohonenSOM(grid_size=(10, 10), input_dim=15, learning_rate=lr)
+        som.train_wta(train_data)
+        neuron_labels = label_som(som, train_data, train_labels)
+        error = classification_error(som, neuron_labels, test_data, test_labels)
+        results.append(error)
+        print(f"WTA lr={lr} error={error}")
+    return results
+
+def analyze_effectiveness_from_size_wta(train_ns, test_n):
+    results = []
+    for train_n in train_ns:
+        train_data, train_labels, test_data, test_labels = generate_dataset(train_n, test_n)
+        som = KohonenSOM(grid_size=(10, 10), input_dim=15)
+        som.train_wta(train_data)
+        neuron_labels = label_som(som, train_data, train_labels)
+        error = classification_error(som, neuron_labels, test_data, test_labels)
+        results.append(error)
+        print(f"WTA train_n={train_n} error={error}")
+    return results
+
+def compare_algorithms(train_data, train_labels, test_data, test_labels):
+    print("\n--- Algorithm Comparison ---")
+
+    # 1. Rectangular
+    som_rect = KohonenSOM(grid_size=(10, 10), input_dim=15)
+    start_time = time.time()
+    som_rect.train_rectangular(train_data, epochs=10000)
+    rect_time = time.time() - start_time
+    labels_rect = label_som(som_rect, train_data, train_labels)
+    err_rect = classification_error(som_rect, labels_rect, test_data, test_labels)
+
+    # 2. WTA
+    som_wta = KohonenSOM(grid_size=(10, 10), input_dim=15)
+    start_time = time.time()
+    som_wta.train_wta(train_data, epochs=10000)
+    wta_time = time.time() - start_time
+    labels_wta = label_som(som_wta, train_data, train_labels)
+    err_wta = classification_error(som_wta, labels_wta, test_data, test_labels)
+
+    print(f"Rectangular: Error = {err_rect:.4f}, Time = {rect_time:.4f} sec")
+    print(f"WTA:         Error = {err_wta:.4f}, Time = {wta_time:.4f} sec")
+
+    algorithms = ['Rectangular', 'WTA']
+    errors = [err_rect, err_wta]
+    times = [rect_time, wta_time]
+
+    x = np.arange(len(algorithms))
+    width = 0.35
+
+    fig, ax1 = plt.subplots(figsize=(8, 5))
+
+    rects1 = ax1.bar(x - width / 2, errors, width, label='Classification Error', color='skyblue')
+    ax1.set_ylabel('Classification Error', color='blue')
+
+    max_err = max(errors) if max(errors) > 0 else 0.1
+    ax1.set_ylim(0, max_err + 0.1)
+    ax1.tick_params(axis='y', labelcolor='blue')
+
+    ax2 = ax1.twinx()
+
+    rects2 = ax2.bar(x + width / 2, times, width, label='Execution Time (s)', color='salmon')
+    ax2.set_ylabel('Time (seconds)', color='red')
+    ax2.set_ylim(0, max(times) * 1.2)
+    ax2.tick_params(axis='y', labelcolor='red')
+
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(algorithms)
+
+    fig.legend(loc="upper right", bbox_to_anchor=(0.9, 0.9))
+
+    plt.title('Algorithm Comparison: Error vs Execution Time')
+    plt.grid(axis='y', linestyle='--', alpha=0.5)
+    plt.show()
+
 if __name__ == '__main__':
     train_data, train_labels, test_data, test_labels = generate_dataset(20, 2)
 
@@ -169,12 +249,29 @@ if __name__ == '__main__':
 
     
     # Here should be the same for WTA
+    print("\nTraining SOM (WTA)...")
+    som_wta = KohonenSOM(grid_size=(10, 10), input_dim=15)
+    som_wta.train_wta(train_data)
 
+    print("\nTest sample mappings (WTA):")
+    neuron_labels_wta = label_som(som_wta, train_data, train_labels)
+    correct_wta = 0
+
+    print("\nTest predictions (WTA):\n")
+    for x, true_label in zip(test_data, test_labels):
+        pred = predict(som_wta, neuron_labels_wta, x)
+        print(f"true={true_label:15} predicted={pred}")
+        if pred == true_label:
+            correct_wta += 1
+
+    accuracy_wta = correct_wta / len(test_labels)
+    print("\nAccuracy (WTA):", accuracy_wta)
 
     print("\n\nLearning rate effectiveness analysis (rectangular):")
     learning_rates = [0.01, 0.05, 0.1, 0.2, 0.3, 0.5, 0.8, 1]
     lr_results = analyze_effectiveness_from_lr_rectangular(train_data, train_labels, test_data, test_labels, learning_rates)
 
+    plt.figure()
     plt.plot(learning_rates, lr_results, marker="o")
     plt.xlabel("Learning rate")
     plt.ylabel("Classification error")
@@ -183,15 +280,24 @@ if __name__ == '__main__':
 
 
     # Here should be the same for WTA
+    print("\n\nLearning rate effectiveness analysis (WTA):")
+    lr_results_wta = analyze_effectiveness_from_lr_wta(train_data, train_labels, test_data, test_labels, learning_rates)
 
+    plt.figure()
+    plt.plot(learning_rates, lr_results_wta, marker="s", color="orange")
+    plt.xlabel("Learning rate")
+    plt.ylabel("Classification error")
+    plt.title("Error vs Learning Rate (WTA)")
+    plt.show()
 
     # Here should be the comparison of algorithms
-
+    compare_algorithms(train_data, train_labels, test_data, test_labels)
 
     print("\n\nTraining dataset size analysis (rectangular):")
     train_ns = range(5, 50, 5)
     size_results = analyze_effectiveness_from_size_rectangular(train_ns, 2)
 
+    plt.figure()
     plt.plot(train_ns, size_results, marker="o")
     plt.xlabel("Training dataset size by class")
     plt.ylabel("Classification error")
@@ -200,3 +306,12 @@ if __name__ == '__main__':
 
 
     # Here should be the same for WTA
+    print("\n\nTraining dataset size analysis (WTA):")
+    size_results_wta = analyze_effectiveness_from_size_wta(train_ns, 2)
+
+    plt.figure()
+    plt.plot(train_ns, size_results_wta, marker="s", color="orange")
+    plt.xlabel("Training dataset size by class")
+    plt.ylabel("Classification error")
+    plt.title("Error vs Training Set Size (WTA)")
+    plt.show()
