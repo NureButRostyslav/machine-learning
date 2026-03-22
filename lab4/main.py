@@ -1,6 +1,5 @@
 from hopfield import HopfieldNetwork
 import numpy as np
-from collections import defaultdict, Counter
 import matplotlib.pyplot as plt
 import time
 
@@ -76,61 +75,110 @@ def generate_dataset(train_n, test_n):
 
     return train_data, train_labels, test_data, test_labels
 
+def compare_hopfield_algorithms(patterns, test_data, test_labels, pattern_labels):
+    print("\n--- Algorithm Comparison ---")
 
+    # 1. Hebb
+    hopfield_hebb = HopfieldNetwork()
+    start_time = time.time()
+    hopfield_hebb.train_hebb(patterns)
+    hebb_time = time.time() - start_time
 
-# def compare_algorithms(train_data, train_labels, test_data, test_labels):
-#     print("\n--- Algorithm Comparison ---")
+    correct_hebb = 0
+    for x, t in zip(test_data, test_labels):
+        pred = closest_pattern(hopfield_hebb.predict(x), patterns, pattern_labels)
+        if pred == t: correct_hebb += 1
+    err_hebb = 1.0 - (correct_hebb / len(test_labels))
 
-#     # 1. Rectangular
-#     som_rect = KohonenSOM(grid_size=(10, 10), input_dim=15)
-#     start_time = time.time()
-#     som_rect.train_rectangular(train_data, epochs=10000)
-#     rect_time = time.time() - start_time
-#     labels_rect = label_som(som_rect, train_data, train_labels)
-#     err_rect = classification_error(som_rect, labels_rect, test_data, test_labels)
+    # 2. Projection
+    hopfield_proj = HopfieldNetwork()
+    start_time = time.time()
+    hopfield_proj.train_projection(patterns)
+    proj_time = time.time() - start_time
 
-#     # 2. WTA
-#     som_wta = KohonenSOM(grid_size=(10, 10), input_dim=15)
-#     start_time = time.time()
-#     som_wta.train_wta(train_data, epochs=10000)
-#     wta_time = time.time() - start_time
-#     labels_wta = label_som(som_wta, train_data, train_labels)
-#     err_wta = classification_error(som_wta, labels_wta, test_data, test_labels)
+    correct_proj = 0
+    for x, t in zip(test_data, test_labels):
+        pred = closest_pattern(hopfield_proj.predict(x), patterns, pattern_labels)
+        if pred == t: correct_proj += 1
+    err_proj = 1.0 - (correct_proj / len(test_labels))
 
-#     print(f"Rectangular: Error = {err_rect:.4f}, Time = {rect_time:.4f} sec")
-#     print(f"WTA:         Error = {err_wta:.4f}, Time = {wta_time:.4f} sec")
+    print(f"Hebb:       Error = {err_hebb:.4f}, Time = {hebb_time:.6f} sec")
+    print(f"Projection: Error = {err_proj:.4f}, Time = {proj_time:.6f} sec")
 
-#     algorithms = ['Rectangular', 'WTA']
-#     errors = [err_rect, err_wta]
-#     times = [rect_time, wta_time]
+    algorithms = ['Hebb', 'Projection']
+    errors = [err_hebb, err_proj]
+    times = [hebb_time, proj_time]
 
-#     x = np.arange(len(algorithms))
-#     width = 0.35
+    x = np.arange(len(algorithms))
+    width = 0.35
 
-#     fig, ax1 = plt.subplots(figsize=(8, 5))
+    fig, ax1 = plt.subplots(figsize=(8, 5))
 
-#     rects1 = ax1.bar(x - width / 2, errors, width, label='Classification Error', color='skyblue')
-#     ax1.set_ylabel('Classification Error', color='blue')
+    ax1.bar(x - width / 2, errors, width, label='Classification Error', color='skyblue')
+    ax1.set_ylabel('Classification Error', color='blue')
+    max_err = max(errors) if max(errors) > 0 else 0.1
+    ax1.set_ylim(0, max_err + 0.1)
+    ax1.tick_params(axis='y', labelcolor='blue')
 
-#     max_err = max(errors) if max(errors) > 0 else 0.1
-#     ax1.set_ylim(0, max_err + 0.1)
-#     ax1.tick_params(axis='y', labelcolor='blue')
+    ax2 = ax1.twinx()
+    ax2.bar(x + width / 2, times, width, label='Execution Time (s)', color='salmon')
+    ax2.set_ylabel('Time (seconds)', color='red')
+    ax2.set_ylim(0, max(max(times) * 1.2, 0.001))
+    ax2.tick_params(axis='y', labelcolor='red')
 
-#     ax2 = ax1.twinx()
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(algorithms)
 
-#     rects2 = ax2.bar(x + width / 2, times, width, label='Execution Time (s)', color='salmon')
-#     ax2.set_ylabel('Time (seconds)', color='red')
-#     ax2.set_ylim(0, max(times) * 1.2)
-#     ax2.tick_params(axis='y', labelcolor='red')
+    fig.legend(loc="upper right", bbox_to_anchor=(0.9, 0.9))
+    plt.title('Algorithm Comparison: Error vs Execution Time')
+    plt.grid(axis='y', linestyle='--', alpha=0.5)
+    plt.show()
 
-#     ax1.set_xticks(x)
-#     ax1.set_xticklabels(algorithms)
+def analyze_accurace_by_noise_proj(hopfield, test_data, test_labels, patterns, pattern_labels):
+    noise_levels = np.linspace(0, 1, 5)
+    results = []
 
-#     fig.legend(loc="upper right", bbox_to_anchor=(0.9, 0.9))
+    for noise in noise_levels:
+        noisy_test = add_noise(test_data, noise)
+        correct = 0
 
-#     plt.title('Algorithm Comparison: Error vs Execution Time')
-#     plt.grid(axis='y', linestyle='--', alpha=0.5)
-#     plt.show()
+        for x, true_label in zip(noisy_test, test_labels):
+            restored = hopfield.predict(x)
+            pred_label = closest_pattern(restored, patterns, pattern_labels)
+            if pred_label == true_label:
+                correct += 1
+
+        accuracy = correct / len(test_labels)
+        results.append((noise, accuracy))
+
+        print(f"Noise level: {noise:.2f} | Accuracy: {accuracy:.4f}")
+
+    return results
+
+def analyze_learning_rate(patterns, test_data, test_labels, pattern_labels):
+    print("\n--- Analyzing Learning Rate (Hebb) ---")
+    rates = [0.1, 0.5, 1.0, 2.0, 5.0]
+    accuracies = []
+
+    for lr in rates:
+        hopfield = HopfieldNetwork()
+        hopfield.train_hebb(patterns, learning_rate=lr)
+
+        correct = 0
+        for x, true_label in zip(test_data, test_labels):
+            restored = hopfield.predict(x)
+            if closest_pattern(restored, patterns, pattern_labels) == true_label:
+                correct += 1
+        accuracies.append(correct / len(test_labels))
+
+    # Малювання графіка має бути ТУТ, всередині функції:
+    plt.figure()
+    plt.plot(rates, accuracies, marker="o", color="green")
+    plt.xlabel("Learning Rate")
+    plt.ylabel("Accuracy")
+    plt.title("Accuracy VS Learning Rate (Hebb)")
+    plt.ylim(0, 1.1)
+    plt.show()
 
 def closest_pattern(output, patterns, labels):
     distances = [np.sum(output != p) for p in patterns]
@@ -215,21 +263,70 @@ if __name__ == '__main__':
 
     
     # Here should be the same for projection
+    print("\nTraining the network (Projection)...")
+    hopfield_proj = HopfieldNetwork()
+    hopfield_proj.train_projection(patterns)
 
+    correct_proj = 0
+    print("Test predictions (Projection):\n")
+    for i, (x, true_label) in enumerate(zip(test_data, test_labels)):
+        restored = hopfield_proj.predict(x)
+        pred_label = closest_pattern(restored, patterns, pattern_labels)
+        is_correct = pred_label == true_label
+
+        print(f"Sample {i + 1}:")
+        print(f"  True label: {true_label}")
+        print(f"  Predicted : {pred_label}")
+        print(f"  Correct   : {is_correct}")
+        print("-" * 30)
+
+        if is_correct:
+            correct_proj += 1
+
+    accuracy_proj = correct_proj / len(test_labels)
+    print(f"\nFinal Accuracy (Projection): {accuracy_proj:.4f}")
     
     # There is no learning rate
 
 
     # Here should be the comparison of algorithms
+    compare_hopfield_algorithms(patterns, test_data, test_labels, pattern_labels)
 
+    print("\n\nAccuracy worsening due to noise analysis (Hebb):")
+    noise_results_hebb = analyze_accurace_by_noise_hebb(hopfield, test_data, test_labels, patterns, pattern_labels)
 
-    print("\n\nAccuracy worsening due to noice analysis (Hebb):")
-    noice_recults_hebb = analyze_accurace_by_noise_hebb(hopfield, test_data, test_labels, patterns, pattern_labels)
+    print("\n\nAccuracy worsening due to noise analysis (Projection):")
+    noise_results_proj = analyze_accurace_by_noise_proj(hopfield_proj, test_data, test_labels, patterns, pattern_labels)
 
     plt.figure()
-    plt.plot([r[0] for r in noice_recults_hebb], [r[1] for r in noice_recults_hebb], marker="o")
+    plt.plot([r[0] for r in noise_results_hebb], [r[1] for r in noise_results_hebb], marker="o", label="Hebb Rule")
+    plt.plot([r[0] for r in noise_results_proj], [r[1] for r in noise_results_proj], marker="s",
+             label="Projection Rule", color="orange")
     plt.xlabel("Noise level")
     plt.ylabel("Accuracy")
-    plt.title("Accuracy VS Noise level (Hebb)")
+    plt.title("Accuracy VS Noise level")
+    plt.legend()
+    plt.grid(True, linestyle='--', alpha=0.7)
     plt.show()
-    
+
+    # print("\n\nAccuracy worsening due to noice analysis (Hebb):")
+    # noice_recults_hebb = analyze_accurace_by_noise_hebb(hopfield, test_data, test_labels, patterns, pattern_labels)
+    #
+    # plt.figure()
+    # plt.plot([r[0] for r in noice_recults_hebb], [r[1] for r in noice_recults_hebb], marker="o")
+    # plt.xlabel("Noise level")
+    # plt.ylabel("Accuracy")
+    # plt.title("Accuracy VS Noise level (Hebb)")
+    # plt.show()
+    #
+    # print("\n\nAccuracy worsening due to noise analysis (Projection):")
+    # noise_results_proj = analyze_accurace_by_noise_proj(hopfield_proj, test_data, test_labels, patterns, pattern_labels)
+    #
+    # plt.figure()
+    # plt.plot([r[0] for r in noise_results_proj], [r[1] for r in noise_results_proj], marker="s", color="orange")
+    # plt.xlabel("Noise level")
+    # plt.ylabel("Accuracy")
+    # plt.title("Accuracy VS Noise level (Projection)")
+    # plt.show()
+
+    analyze_learning_rate(patterns, test_data, test_labels, pattern_labels)
