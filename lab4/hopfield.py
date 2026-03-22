@@ -4,21 +4,13 @@ class HopfieldNetwork:
     def __init__(self):
         self.W = None
 
-    def train_hebb(self, patterns, learning_rate=1.0):
+    def train_hebb(self, patterns):
         P, N = patterns.shape
         self.W = np.zeros((N, N))
 
         for p in patterns:
-            self.W += learning_rate * np.outer(p, p)
-        np.fill_diagonal(self.W, 0)
+            self.W += np.outer(p, p)
 
-    def train_projection(self, patterns):
-        overlap_matrix = np.dot(patterns, patterns.T)
-        try:
-            inv_overlap = np.linalg.inv(overlap_matrix)
-        except np.linalg.LinAlgError:
-            inv_overlap = np.linalg.pinv(overlap_matrix)
-        self.W = np.dot(np.dot(patterns.T, inv_overlap), patterns)
         np.fill_diagonal(self.W, 0)
 
     def activation(self, x):
@@ -30,11 +22,20 @@ class HopfieldNetwork:
         # y_j = f(s_j)
         return self.activation(s)
 
-    def predict(self, pattern, max_steps=100):
+    def predict(self, pattern, steps=10):
         state = pattern.copy()
-        for _ in range(max_steps):
-            new_state = self.update(state)
-            if np.array_equal(new_state, state):
-                break
-            state = new_state
+        for _ in range(steps):
+            state = self.update(state)
         return state
+
+    def train_projection(self, patterns):
+        overlap_matrix = np.dot(patterns, patterns.T)
+
+        try:
+            inv_overlap = np.linalg.inv(overlap_matrix)
+        except np.linalg.LinAlgError:
+            inv_overlap = np.linalg.pinv(overlap_matrix)
+
+        self.W = np.dot(np.dot(patterns.T, inv_overlap), patterns)
+
+        np.fill_diagonal(self.W, 0)

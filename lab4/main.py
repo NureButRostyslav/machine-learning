@@ -31,11 +31,11 @@ def generate_dataset(train_n, test_n):
     classes = {
         "cargo_ship": {
             "mean": [220, 32, 12, 70000, 24, 18, 50000, 20, 25, 5000, 30000, 80, 45, 8, 4],
-            "std":  [15, 3, 2, 6000, 2, 2, 5000, 5, 3, 400, 3000, 5, 4, 1, 1],
+            "std": [15, 3, 2, 6000, 2, 2, 5000, 5, 3, 400, 3000, 5, 4, 1, 1],
         },
         "passenger_ferry": {
             "mean": [180, 28, 7, 35000, 28, 22, 5000, 2000, 120, 3000, 25000, 90, 10, 6, 8],
-            "std":  [10, 2, 1, 4000, 2, 2, 1000, 200, 10, 300, 2000, 6, 2, 1, 1],
+            "std": [10, 2, 1, 4000, 2, 2, 1000, 200, 10, 300, 2000, 6, 2, 1, 1],
         },
         # "fishing_vessel": {
         #     "mean": [45, 10, 4, 900, 16, 12, 100, 10, 12, 200, 1500, 30, 15, 5, 7],
@@ -155,30 +155,6 @@ def analyze_accurace_by_noise_proj(hopfield, test_data, test_labels, patterns, p
 
     return results
 
-def analyze_learning_rate(patterns, test_data, test_labels, pattern_labels):
-    print("\n--- Analyzing Learning Rate (Hebb) ---")
-    rates = [0.1, 0.5, 1.0, 2.0, 5.0]
-    accuracies = []
-
-    for lr in rates:
-        hopfield = HopfieldNetwork()
-        hopfield.train_hebb(patterns, learning_rate=lr)
-
-        correct = 0
-        for x, true_label in zip(test_data, test_labels):
-            restored = hopfield.predict(x)
-            if closest_pattern(restored, patterns, pattern_labels) == true_label:
-                correct += 1
-        accuracies.append(correct / len(test_labels))
-
-    # Малювання графіка має бути ТУТ, всередині функції:
-    plt.figure()
-    plt.plot(rates, accuracies, marker="o", color="green")
-    plt.xlabel("Learning Rate")
-    plt.ylabel("Accuracy")
-    plt.title("Accuracy VS Learning Rate (Hebb)")
-    plt.ylim(0, 1.1)
-    plt.show()
 
 def closest_pattern(output, patterns, labels):
     distances = [np.sum(output != p) for p in patterns]
@@ -249,7 +225,7 @@ if __name__ == '__main__':
 
         is_correct = pred_label == true_label
 
-        print(f"Sample {i+1}:")
+        print(f"Sample {i + 1}:")
         print(f"  True label: {true_label}")
         print(f"  Predicted : {pred_label}")
         print(f"  Correct   : {is_correct}")
@@ -261,7 +237,6 @@ if __name__ == '__main__':
     accuracy = correct / len(test_labels)
     print(f"\nFinal Accuracy: {accuracy:.4f}")
 
-    
     # Here should be the same for projection
     print("\nTraining the network (Projection)...")
     hopfield_proj = HopfieldNetwork()
@@ -285,9 +260,8 @@ if __name__ == '__main__':
 
     accuracy_proj = correct_proj / len(test_labels)
     print(f"\nFinal Accuracy (Projection): {accuracy_proj:.4f}")
-    
-    # There is no learning rate
 
+    # There is no learning rate
 
     # Here should be the comparison of algorithms
     compare_hopfield_algorithms(patterns, test_data, test_labels, pattern_labels)
@@ -328,5 +302,3 @@ if __name__ == '__main__':
     # plt.ylabel("Accuracy")
     # plt.title("Accuracy VS Noise level (Projection)")
     # plt.show()
-
-    analyze_learning_rate(patterns, test_data, test_labels, pattern_labels)
